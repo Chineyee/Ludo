@@ -159,3 +159,33 @@
         )
     )
 )
+
+
+(define-public (join-game (game-id uint))
+    (let (
+        (game (unwrap! (map-get? games game-id) ERR-INVALID-GAME))
+        (player tx-sender)
+        (current-players (get players game))
+        (game-stake (get stake game))
+        (new-player-list (list player))
+    )
+        (if (not (is-eq (get status game) "waiting"))
+            ERR-INVALID-GAME
+            (if (>= (len current-players) u4)
+                ERR-GAME-FULL
+                (if (>= game-stake (stx-get-balance tx-sender))
+                    ERR-NOT-ENOUGH-FUNDS
+                    (ok (map-set games
+                        game-id
+                        (merge game {
+                            players: (unwrap! (as-max-len? (concat current-players new-player-list) u4) ERR-GAME-FULL),
+                            status: (if (is-eq (+ (len current-players) u1) u4) 
+                                      "waiting"
+                                      "in-progress")
+                        })
+                    ))
+                )
+            )
+        )
+    )
+)
