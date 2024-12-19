@@ -45,6 +45,10 @@
 (define-constant ERR-GAME-FULL (err u101))
 (define-constant ERR-INVALID-GAME (err u102))
 (define-constant ERR-NOT-ENOUGH-FUNDS (err u103))
+(define-constant ERR-INVALID-USERNAME (err u104))
+(define-constant ERR-INVALID-ASSET-NAME (err u105))
+(define-constant ERR-INVALID-RARITY (err u106))
+(define-constant ERR-INVALID-PRICE (err u107))
 
 ;; Read-only functions
 (define-read-only (get-player-info (player principal))
@@ -62,16 +66,19 @@
 ;; Public functions
 (define-public (register-player (username (string-ascii 50)))
     (let ((player tx-sender))
-        (ok (map-set players 
-            player
-            {
-                username: username,
-                games-played: u0,
-                wins: u0,
-                active-games: (list),
-                nft-balance: u0
-            }
-        ))
+        (if (and (>= (len username) u1) (<= (len username) u50))
+            (ok (map-set players 
+                player
+                {
+                    username: username,
+                    games-played: u0,
+                    wins: u0,
+                    active-games: (list),
+                    nft-balance: u0
+                }
+            ))
+            ERR-INVALID-USERNAME
+        )
     )
 )
 
@@ -99,42 +106,37 @@
     )
 )
 
-(define-public (join-game (game-id uint))
-    (let (
-        (game (unwrap! (map-get? games game-id) ERR-INVALID-GAME))
-        (player tx-sender)
-        (current-players (get players game))
-    )
-        (if (>= (len current-players) u4)
-            ERR-GAME-FULL
-            (ok (map-set games
-                game-id
-                (merge game 
-                    {
-                        players: (as-max-len? (concat current-players (list player)) u4)
-                    }
-                )
-            ))
-        )
-    )
-)
-
 (define-public (mint-game-asset (name (string-ascii 50)) (rarity (string-ascii 20)) (price uint))
     (let (
         (asset-id (var-get asset-nonce))
         (owner tx-sender)
     )
-        (var-set asset-nonce (+ asset-id u1))
-        (ok (map-set game-assets
-            asset-id
-            {
-                owner: owner,
-                name: name,
-                rarity: rarity,
-                price: price,
-                for-sale: false
-            }
-        ))
+        (if (and 
+            (and (>= (len name) u1) (<= (len name) u50))
+            (and (>= (len rarity) u1) (<= (len rarity) u20))
+            (> price u0)
+        )
+            (begin
+                (var-set asset-nonce (+ asset-id u1))
+                (ok (map-set game-assets
+                    asset-id
+                    {
+                        owner: owner,
+                        name: name,
+                        rarity: rarity,
+                        price: price,
+                        for-sale: false
+                    }
+                ))
+            )
+            (if (not (and (>= (len name) u1) (<= (len name) u50)))
+                ERR-INVALID-ASSET-NAME
+                (if (not (and (>= (len rarity) u1) (<= (len rarity) u20)))
+                    ERR-INVALID-RARITY
+                    ERR-INVALID-PRICE
+                )
+            )
+        )
     )
 )
 
@@ -144,13 +146,16 @@
     )
         (if (not (is-eq tx-sender (get owner asset)))
             ERR-NOT-AUTHORIZED
-            (ok (map-set game-assets
-                asset-id
-                (merge asset {
-                    price: price,
-                    for-sale: true
-                })
-            ))
+            (if (> price u0)
+                (ok (map-set game-assets
+                    asset-id
+                    (merge asset {
+                        price: price,
+                        for-sale: true
+                    })
+                ))
+                ERR-INVALID-PRICE
+            )
         )
     )
 )
