@@ -49,6 +49,12 @@
 (define-constant ERR-INVALID-ASSET-NAME (err u105))
 (define-constant ERR-INVALID-RARITY (err u106))
 (define-constant ERR-INVALID-PRICE (err u107))
+(define-constant ERR-INVALID-STATUS (err u108))
+(define-constant ERR-GAME-NOT-IN-PROGRESS (err u109))
+
+;; Define valid game statuses
+(define-constant STATUS-IN-PROGRESS "in-progress")
+(define-constant STATUS-COMPLETED "completed")
 
 ;; Read-only functions
 (define-read-only (get-player-info (player principal))
@@ -208,5 +214,67 @@
                 ))
             )
         )
+    )
+)
+
+(define-public (update-game-progress (game-id uint) (new-status (string-ascii 20)) (winner (optional principal)))
+    (let (
+        (game (unwrap! (map-get? games game-id) ERR-INVALID-GAME))
+        (current-players (get players game))
+        (current-status (get status game))
+    )
+        (asserts! (is-some (index-of current-players tx-sender)) ERR-NOT-AUTHORIZED)
+        (asserts! (or (is-eq new-status STATUS-IN-PROGRESS) 
+                     (is-eq new-status STATUS-COMPLETED)) 
+                 ERR-INVALID-STATUS)
+        
+        ;; Check if trying to set a winner
+        (if (is-some winner)
+            ;; If setting winner, ensure game is being completed
+            (if (is-eq new-status STATUS-COMPLETED)
+                (begin
+                    ;; Verify winner is a player in the game
+                    (asserts! (is-some (index-of current-players (unwrap! winner ERR-NOT-AUTHORIZED))) 
+                             ERR-NOT-AUTHORIZED)
+                    ;; Update game with winner
+                    (update-winner-stats game-id winner)
+                )
+                ERR-GAME-NOT-IN-PROGRESS
+            )
+            ;; If no winner provided, just update status
+            (ok (map-set games
+                game-id
+                (merge game {
+                    status: new-status
+                })
+            ))
+        )
+    )
+)
+
+;; Helper function to update winner statistics
+(define-private (update-winner-stats (game-id uint) (winner-principal (optional principal)))
+    (let (
+        (game (unwrap! (map-get? games game-id) ERR-INVALID-GAME))
+        (winner (unwrap! winner-principal ERR-NOT-AUTHORIZED))
+        (winner-info (unwrap! (map-get? players winner) ERR-NOT-AUTHORIZED))
+    )
+        (ok (begin
+            ;; Update game status and winner
+            (map-set games
+                game-id
+                (merge game {
+                    status: STATUS-COMPLETED,
+                    winner: winner-principal
+                })
+            )
+            ;; Update winner's statistics
+            (map-set players
+                winner
+                (merge winner-info {
+                    wins: (+ (get wins winner-info) u1)
+                })
+            )
+        ))
     )
 )
