@@ -3,13 +3,28 @@
 Ludo is a decentralized gaming platform built on the Stacks blockchain that enables players to participate in games, own in-game assets, and trade them in a secure marketplace.
 
 ## Features
+## Core Gaming Features
 
-- Player registration and profile management
-- Game creation and participation
-- NFT-based game assets
-- Marketplace for trading game items
-- Achievement and rewards system
-- Built on Stacks blockchain with Clarity smart contracts
+### Player Management: Register and track player profiles with stats and achievements
+1. Game Mechanics:
+Create and join games with customizable stakes
+Support for up to 4 players per game
+Status tracking system (waiting → ready → in-progress → completed)
+Built-in winner verification and rewards distribution
+
+2. Asset System:
+Mint unique in-game assets with customizable properties
+Marketplace functionality for buying and selling assets
+Rarity system for asset classification
+
+## Technical Features
+Smart Contract Integration: Full Clarity smart contract implementation
+Authentication: Principal-based player verification
+
+1. State Management:
+Persistent game state tracking
+Player statistics and achievements
+Asset ownership and transfer history
 
 ## Smart Contract Overview
 
