@@ -189,3 +189,24 @@
         )
     )
 )
+
+
+(define-public (update-game-status (game-id uint))
+    (let (
+        (game (unwrap! (map-get? games game-id) ERR-INVALID-GAME))
+        (current-players (get players game))
+    )
+        (if (not (is-eq (len current-players) u4))
+            ERR-GAME-FULL
+            (if (not (is-some (index-of current-players tx-sender)))
+                ERR-NOT-AUTHORIZED
+                (ok (map-set games
+                    game-id
+                    (merge game {
+                        status: "ready"
+                    })
+                ))
+            )
+        )
+    )
+)
